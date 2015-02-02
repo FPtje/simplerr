@@ -1,11 +1,13 @@
 local CompileString = CompileString
 local error = error
-local isfunction = isfunction
+local error = error
 local file = file
+local isfunction = isfunction
+local os = os
+local pcall = pcall
 local string = string
 local table = table
 local tonumber = tonumber
-local pcall = pcall
 
 -- Template for syntax errors
 local synErrTranslation = [[Lua is unable to understand file "%s" because its author made a mistake around line number %i.
@@ -383,3 +385,33 @@ function runFile(path)
 
     return false, translateError(path, err, synErrTranslation, synErrs)
 end
+
+-- Error wrapper: decorator for runFile and safeCall that throws an error on failure.
+-- Breaks execution. Must be the last decorator.
+function wrapError(succ, err)
+    if succ then return succ, err end
+
+    error(err)
+end
+
+-- Logging wrapper: decorator for runFile and safeCall that logs failures.
+--
+local log = {}
+function wrapLog(succ, err)
+    if succ then return succ, err end
+
+    local data = {
+        err = err,
+        time = os.time()
+    }
+
+    table.insert(log, data)
+
+    return succ, err
+end
+
+-- Retrieve the log
+function getLog() return log end
+
+-- Clear the log
+function clearLog() log = {} end
