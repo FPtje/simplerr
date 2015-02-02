@@ -2,6 +2,7 @@ local CompileString = CompileString
 local error = error
 local error = error
 local file = file
+local hook = hook
 local isfunction = isfunction
 local os = os
 local pcall = pcall
@@ -394,8 +395,14 @@ function wrapError(succ, err)
     error(err)
 end
 
+-- Hook wrapper: Calls a hook on error
+function wrapHook(succ, err)
+    if not succ then hook.Call("onSimplerrError", nil, err) end
+
+    return succ, err
+end
+
 -- Logging wrapper: decorator for runFile and safeCall that logs failures.
---
 local log = {}
 function wrapLog(succ, err)
     if succ then return succ, err end
