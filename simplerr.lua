@@ -377,6 +377,8 @@ end
 
 -- Run a file or explain its syntax errors in layman's terms
 -- Returns bool succeed, [string error]
+-- Do NOT use this on clientside files.
+-- Clientside files sent by the server cannot be read using file.Read unless you're the host of a listen server
 function runFile(path)
     if not file.Exists(path, "LUA") then error(string.format("Could not run file '%s' (file not found)", path)) end
     local contents = file.Read(path, "LUA")
