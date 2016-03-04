@@ -353,7 +353,13 @@ local function getStack(i, start)
         local info = debug.getinfo(i + count, "Sln")
         if not info then break end
 
-        table.insert(stack, string.format("\t%i. %s on line %s", start + count - 1, info.short_src, info.currentline or "unknown"))
+        local stackLevel = start + count - 1
+        local line = info.currentline or "unknown"
+        if line == -1 and info.name then
+            table.insert(stack, string.format("\t%i. function '%s'", stackLevel, info.name))
+        else
+            table.insert(stack, string.format("\t%i. %s on line %s", stackLevel, info.short_src, line))
+        end
     end
 
     return table.concat(stack, "\n")
