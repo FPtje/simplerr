@@ -414,25 +414,27 @@ local function translateError(path, err, translation, errs, stack)
     return res
 end
 
--- Call a function and catch immediate runtime errors
-function safeCall(f, ...)
-    local function errorHandler(err, func)
-        local debugInfo = debug.getinfo(func or 3)
-        local path = debugInfo.short_src
 
-        -- Investigate the stack. Not using path in match because calls to error can give a different path
-        local line = string.match(err, ".*:([0-9-]+)")
-        local stack = string.format("\t1. %s on line %s\n", path, line) .. getStack(func and 3 or 4, 2) -- add called func to stack
+-- Used as the error handler in safeCall
+local function errorHandler(err, func)
+    local debugInfo = debug.getinfo(func or 3)
+    local path = debugInfo.short_src
 
-        -- Line and source info aren't always in the error
-        if not line then
-            line = debugInfo.currentline
-            err = string.format("%s:%s: %s", path, line, err)
-        end
+    -- Investigate the stack. Not using path in match because calls to error can give a different path
+    local line = string.match(err, ".*:([0-9-]+)")
+    local stack = string.format("\t1. %s on line %s\n", path, line) .. getStack(func and 3 or 4, 2) -- add called func to stack
 
-        return {err, path, stack}
+    -- Line and source info aren't always in the error
+    if not line then
+        line = debugInfo.currentline
+        err = string.format("%s:%s: %s", path, line, err)
     end
 
+    return {err, path, stack}
+end
+
+-- Call a function and catch immediate runtime errors
+function safeCall(f, ...)
     -- Use xpcall so fetching of debug info is in the stack of the error rather than after it is unwound
     local res = {xpcall(f, errorHandler, ...)}
 
