@@ -344,7 +344,8 @@ local runErrs = {
 module("simplerr")
 
 -- Get a nicely formatted stack trace. Start is where to start numbering
-local function getStack(i, start)
+-- stackMod allows the caller to modify the stack before it is numbered
+local function getStack(i, start, stackMod)
     i = i or 1
     start = start or 1
     local stack = {}
@@ -354,13 +355,21 @@ local function getStack(i, start)
         local info = debug.getinfo(i + count, "Sln")
         if not info then break end
 
-        local stackLevel = start + count - 1
         local line = info.currentline or "unknown"
         if line == -1 and info.name then
-            table.insert(stack, string.format("\t%i. function '%s'", stackLevel, info.name))
+            table.insert(stack, string.format("function '%s'", info.name))
         else
-            table.insert(stack, string.format("\t%i. %s on line %s", stackLevel, info.short_src, line))
+            table.insert(stack, string.format("%s on line %s", info.short_src, line))
         end
+    end
+
+    -- Allow modification of the stack
+    if stackMod then stack = stackMod(stack) end
+
+    -- add the numbering
+    for count = 1, #stack do
+        local stackLevel = start + count - 1
+        stack[count] = string.format("\t%i. %s", stackLevel, stack[count])
     end
 
     return table.concat(stack, "\n")
@@ -415,6 +424,22 @@ local function translateError(path, err, translation, errs, stack)
 end
 
 
+-- safeCall uses xpcall, which has the downside that both xpcall and
+-- the safeCall function itself end up in the stack trace.
+-- This function removes them from the stack trace
+local function removeXpcall(stack)
+    for i = #stack, 1, -1 do
+        if stack[i] == "function 'xpcall'" then
+            table.remove(stack, i)
+            table.remove(stack, i) -- also remove the simplerr safeCall call
+
+            return stack
+        end
+    end
+
+    return stack
+end
+
 -- Used as the error handler in safeCall
 local function errorHandler(err, func)
     local debugInfo = debug.getinfo(func or 3)
@@ -422,7 +447,7 @@ local function errorHandler(err, func)
 
     -- Investigate the stack. Not using path in match because calls to error can give a different path
     local line = string.match(err, ".*:([0-9-]+)")
-    local stack = string.format("\t1. %s on line %s\n", path, line) .. getStack(func and 3 or 4, 2) -- add called func to stack
+    local stack = string.format("\t1. %s on line %s\n", path, line) .. getStack(func and 3 or 4, 2, removeXpcall) -- add called func to stack
 
     -- Line and source info aren't always in the error
     if not line then
