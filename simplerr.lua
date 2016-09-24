@@ -11,6 +11,7 @@ local math = math
 local os = os
 local string = string
 local table = table
+local timer = timer
 local tonumber = tonumber
 local unpack = unpack
 local xpcall = xpcall
@@ -528,6 +529,18 @@ function wrapError(succ, err, ...)
     if succ then return succ, err, ... end
 
     error(err)
+end
+
+-- ErrorNoHalt wrapper: decorator for runFile and safeCall that throws an non-breaking error on failure.
+-- GMod's ErrorNoHalt is limited to 511 characters so we have to hack around that.
+-- https://github.com/Facepunch/garrysmod-requests/issues/668
+function wrapErrorNoHalt(succ, err, ...)
+    if succ then return succ, err, ... end
+
+    -- Not using Msg as it doesn't send to the server console or call GM:OnLuaError.
+    timer.Simple(0, function()
+        error(err)
+    end)
 end
 
 -- Hook wrapper: Calls a hook on error
